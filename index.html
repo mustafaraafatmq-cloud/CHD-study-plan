@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASHRAE CHD Exam Study Schedule (GPT-powered)</title>
+    <title>ASHRAE CHD Exam Study Schedule</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         :root {
             --primary-color: #1e3a8a;
@@ -17,56 +19,66 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f1f5f9;
+            transition: background 0.3s;
+        }
+        .dark-mode {
+            background-color: #181e28;
+            color: #cbd5e1;
         }
         .day-card {
             transition: all 0.3s ease;
-            cursor: pointer;
+            cursor: grab;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.06);
             border-radius: 0.75rem;
+            user-select: none;
         }
         .day-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
         }
-        .bg-primary-dark { background-color: var(--primary-color); }
-        .border-rag-5 { border-color: var(--complete-color); background-color: #ecfdf5; }
-        .border-rag-4 { border-color: var(--pending-color); background-color: #fffbeb; }
-        .border-rag-3 { border-color: var(--secondary-color); background-color: #eff6ff; }
-        .border-rag-1, .border-rag-2 { border-color: var(--current-color); background-color: #fef2f2; }
-        .text-rag-5 { color: var(--complete-color); }
-        .text-rag-4 { color: var(--pending-color); }
-        .text-rag-3 { color: var(--secondary-color); }
-        .text-rag-1, .text-rag-2 { color: var(--current-color); }
-        .rag-1 { color: var(--current-color); }
-        .rag-3 { color: var(--secondary-color); }
-        .rag-5 { color: var(--complete-color); }
-        .button-main {
-            padding: 0.5rem 1rem;
-            background-color: var(--secondary-color);
-            color: white;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            transition: background 0.2s;
-            border: none;
+        .important-badge {
+            display:inline-block;
+            padding:2px 7px;
+            font-size:0.85rem;
+            color:goldenrod;
+            background:#fff8dc;
+            border-radius:1rem;
+            margin-left:5px;
+            font-weight:700
         }
-        .button-main:hover {
-            background-color: var(--primary-color);
+        .dark-mode .important-badge {background:#413701;color:#ffd700;}
+
+        .progress-bar-bg {
+            background-color: #e5e7eb; 
+            border-radius: 0.5em;
+            overflow: hidden;
         }
-        .button-save {
-            padding: 0.5rem 1rem;
-            background-color: var(--primary-color);
-            color: white;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            transition: background 0.2s;
-            border: none;
+        .progress-bar {
+            height: 1.1em;
+            transition: width 0.8s cubic-bezier(.42,0,.58,1.0);
+            background: linear-gradient(90deg, #3b82f6 0%, #10b981 100%);
         }
-        .button-save:hover {
-            background-color: #143173;
+        .pomodoro-btn {
+            padding:0.5em 1.2em;
+            background:#ef4444;
+            color:white;
+            font-weight:700;
+            border-radius:0.5em;
+            border:none;
+            cursor:pointer;
+            transition:background 0.3s;
         }
+        .pomodoro-btn:hover {background:#b91c1c;}
+        .theme-toggle { cursor:pointer; padding:5px 14px; background:#fff; border-radius:1.2em; border:2px solid #1e3a8a; color:#1e3a8a; font-weight:700;}
+        .theme-toggle.active {background:#1e3a8a;color:#fff;}
     </style>
 </head>
 <body class="p-4 md:p-8">
+
+    <!-- Light/Dark Theme Toggle -->
+    <div class="flex justify-end mb-2">
+        <button id="theme-toggle" class="theme-toggle">🌞 Light Mode</button>
+    </div>
 
     <!-- Join/Create Screen -->
     <div id="join-container" class="max-w-lg mx-auto mt-20 p-8 bg-white rounded-xl shadow-lg">
@@ -86,7 +98,10 @@
     <!-- Main App Container -->
     <div id="app-container" class="max-w-7xl mx-auto hidden">
         <header class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-            <h1 class="text-3xl font-extrabold text-primary-dark mb-1">ASHRAE CHD Exam Planner</h1>
+            <div class="flex justify-between items-center">
+                <h1 class="text-3xl font-extrabold text-primary-dark mb-1">ASHRAE CHD Exam Planner</h1>
+                <button class="theme-toggle" id="theme-toggle-2">🌞</button>
+            </div>
             <p class="text-gray-500 mb-4">Study Schedule up to November 24, 2025</p>
             <div id="plan-id-display" class="mt-4 p-3 bg-gray-100 rounded-lg hidden">
                 <p class="text-sm text-gray-700">Share this <strong>Plan ID</strong> with your study partner:</p>
@@ -106,7 +121,8 @@
                 </div>
                 <div class="p-4 rounded-lg bg-pending-color text-white shadow-md">
                     <p class="text-xs opacity-80">Overall Progress</p>
-                    <p id="overall-progress" class="text-3xl font-bold">--</p>
+                    <div class="progress-bar-bg my-2"><div id="progress-bar" class="progress-bar" style="width: 0%"></div></div>
+                    <p id="overall-progress" class="text-3xl font-bold mt-2">--</p>
                 </div>
             </div>
         </header>
@@ -117,35 +133,36 @@
                     <button class="filter-btn button-main bg-gray-200 text-primary-dark active" data-filter="all">All Days</button>
                     <button class="filter-btn button-main bg-green-100 text-complete" data-filter="complete">Completed</button>
                     <button class="filter-btn button-main bg-yellow-100 text-pending" data-filter="pending">Pending</button>
-                    <button class="filter-btn button-main bg-red-100 text-current" data-filter="review">Review Needed (RAG 1-2)</button>
+                    <button class="filter-btn button-main bg-red-100 text-current" data-filter="important">Important</button>
                 </div>
                 <input id="search-input" type="text" placeholder="Search topics or notes..." class="p-2 border border-gray-300 rounded-md shadow-sm w-full md:w-1/3 focus:ring-secondary-color focus:border-secondary-color">
             </div>
             <div id="schedule-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"></div>
             <div id="error-message" class="text-red-600 mt-4 hidden"></div>
-
-            <!-- Insight Output Panel -->
-            <div id="insight-panel" class="mt-8 pt-6 border-t border-gray-200 hidden">
-                <h3 class="text-xl font-bold text-gray-700 mb-4 flex items-center">
-                    <span class="mr-2 text-2xl text-green-600">✨</span> Study Insight / Practice Questions
-                </h3>
-                <div id="insight-content" class="p-4 bg-gray-50 rounded-lg text-gray-700 shadow-inner min-h-24 flex items-center justify-center text-center">
-                    Select a topic and click a feature button in the edit modal to load key information or practice questions here!
-                </div>
-                <div id="insight-sources" class="text-xs text-gray-500 mt-2 hidden"></div>
-            </div>
         </main>
     </div>
 
-    <!-- Modal for editing a Day Card -->
+    <!-- Pomodoro Timer Modal -->
+    <div id="pomodoro-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden items-center justify-center p-4 z-60 flex">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-xs mx-auto text-center">
+            <h2 class="text-xl font-bold mb-3 text-primary-dark">Study Focus Timer</h2>
+            <p class="text-gray-600 mb-4">25 min study session. Stay focused!</p>
+            <div id="timer-display" class="text-4xl mb-6 font-mono text-primary-dark">25:00</div>
+            <button id="start-timer" class="pomodoro-btn">Start</button>
+            <button id="close-timer" class="mt-3 py-2 px-5 bg-gray-200 text-gray-700 rounded">Cancel</button>
+            <div id="timer-done" class="hidden text-green-600 mt-3 font-bold text-lg">🎉 Done!</div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
     <div id="edit-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-2xl transform transition-all">
             <h3 class="text-xl font-bold mb-4 text-primary-dark">Edit Study Day <span id="modal-date-display" class="font-light text-secondary-color"></span></h3>
-            <label for="modal-topic-input" class="block text-sm font-medium text-gray-700">Topic Focus (Type or Select):</label>
+            <label for="modal-topic-input" class="block text-sm font-medium text-gray-700 mb-1">Topic:</label>
             <input list="topic-options" id="modal-topic-input" type="text" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-secondary-color focus:border-secondary-color sm:text-sm rounded-md shadow-sm">
             <datalist id="topic-options"></datalist>
             <div class="mt-4">
-                <label for="modal-status" class="block text-sm font-medium text-gray-700">Completion Status:</label>
+                <label for="modal-status" class="block text-sm font-medium text-gray-700">Status:</label>
                 <select id="modal-status" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-secondary-color focus:border-secondary-color sm:text-sm rounded-md shadow-sm">
                     <option value="pending">Pending</option>
                     <option value="in_progress">In Progress</option>
@@ -153,45 +170,30 @@
                 </select>
             </div>
             <div class="mt-4">
-                <label for="modal-confidence" class="block text-sm font-medium text-gray-700">
-                    Confidence Rating: <span id="confidence-value" class="font-bold text-secondary-color">3</span>
-                    <span id="confidence-label" class="text-xs ml-2 text-secondary-color">(Average)</span>
-                </label>
-                <input type="range" id="modal-confidence" min="1" max="5" value="3" class="w-full mt-2 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                <div class="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>1 (Low)</span>
-                    <span>3 (Avg)</span>
-                    <span>5 (Mastered)</span>
-                </div>
-            </div>
-            <div class="mt-4">
-                <label for="modal-notes" class="block text-sm font-medium text-gray-700">Study Notes:</label>
+                <label for="modal-notes" class="block text-sm font-medium text-gray-700">Notes:</label>
                 <textarea id="modal-notes" rows="3" class="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-secondary-color focus:border-secondary-color sm:text-sm rounded-md shadow-sm"></textarea>
             </div>
-            <div class="mt-6 space-y-3 md:space-y-0 md:flex md:justify-between md:items-center">
-                <!-- AI Feature Buttons -->
-                <div class="flex flex-col space-y-2 md:flex-row md:space-x-2 md:space-y-0">
-                    <button id="get-insight-modal" class="button-main bg-green-600 hover:bg-green-700 flex items-center justify-center">
-                        <span class="mr-1">🧠</span> Get AI Insight
-                    </button>
-                    <button id="get-questions-modal" class="button-main bg-blue-600 hover:bg-blue-700 flex items-center justify-center">
-                        <span class="mr-1">❓</span> Get 5 MCQs
-                    </button>
-                </div>
-                <button id="save-modal" class="button-save">Save Changes</button>
+            <div class="mt-4 flex items-center">
+                <input type="checkbox" id="important-check" class="mr-2">
+                <label for="important-check" class="text-sm font-medium text-yellow-700">Mark as Important</label>
+                <button class="ml-auto pomodoro-btn" id="pomodoro-trigger" title="Start a 25-min timer for this topic">⏰ Pomodoro</button>
+            </div>
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="edit-up" class="px-3 py-2 bg-blue-200 text-blue-700 rounded font-bold" title="Move Up">↑</button>
+                <button id="edit-down" class="px-3 py-2 bg-blue-200 text-blue-700 rounded font-bold" title="Move Down">↓</button>
+                <button id="save-modal" class="button-save">Save</button>
                 <button id="close-modal" class="button-main bg-gray-200 text-primary-dark">Cancel</button>
             </div>
         </div>
     </div>
 
-    <!-- Firebase Imports + OpenAI Script -->
+    <!-- Firebase Imports and Scripting -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ------ YOUR FIREBASE CONFIG ------
         const firebaseConfig = {
             apiKey: "AIzaSyAWi2fE6rxQO2YwH3bayf7zB9NsEoPGXYM",
             authDomain: "chd-study-plan.firebaseapp.com",
@@ -200,22 +202,14 @@
             messagingSenderId: "329855623463",
             appId: "1:329855623463:web:32be2774d68574ca910902"
         };
-
-        // ------ OPENAI CONFIG ------
-        const OPENAI_API_KEY = "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";
-        const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
-        // Endpoints and config
-
         let app, db, auth, userId = null;
         let currentPlanId = null;
         let scheduleData = [];
         let editingIndex = -1;
         let currentFilter = 'all';
         let currentSearchTerm = '';
-        let currentInsightTopic = '';
         const EXAM_DATE = '2025-11-24';
         const START_DATE = '2025-11-05';
-
         const CORE_TOPICS = [
             'HVAC Fundamentals & Terminology',
             'Psychrometrics & Air Conditioning Processes',
@@ -262,7 +256,7 @@
                     topic: defaultTopic,
                     status: dateStr === EXAM_DATE ? 'exam' : 'pending',
                     notes: '',
-                    confidence: 3
+                    important: false
                 });
                 currentDate.setDate(currentDate.getDate() + 1);
             }
@@ -337,13 +331,11 @@
             onSnapshot(scheduleRef, (docSnap) => {
                 if (docSnap.exists()) {
                     scheduleData = docSnap.data().schedule.map(day => ({
-                        notes: '',
-                        confidence: 3,
+                        important:false,
                         ...day
                     }));
                     console.log("Schedule loaded from Firestore.");
                 } else {
-                    console.log("Creating new schedule data for this plan.");
                     scheduleData = generateInitialSchedule();
                     saveSchedule();
                 }
@@ -367,115 +359,6 @@
                 document.getElementById('error-message').classList.remove('hidden');
             }
         }
-
-        // ------ OpenAI Functions ------
-        async function fetchOpenAIChat(messages) {
-            const response = await fetch(OPENAI_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${OPENAI_API_KEY}`
-                },
-                body: JSON.stringify({
-                    model: "gpt-3.5-turbo", // or "gpt-4" if you have access
-                    messages: messages,
-                    temperature: 0.7
-                })
-            });
-            if (!response.ok) throw new Error("OpenAI API error " + response.status);
-            const data = await response.json();
-            return data.choices[0].message.content;
-        }
-
-        async function getAIInsight(topic) {
-            document.getElementById('insight-panel').classList.remove('hidden');
-            displayInsight("Loading ChatGPT study insight ...", [], true);
-
-            const prompt = `Explain concisely (max 150 words) the key concepts, formulas, and study tips for ASHRAE CHD exam topic "${topic}". Focus on ASHRAE standards, especially 90.1 and 62.1. Respond for students.`;
-            try {
-                const text = await fetchOpenAIChat([
-                    {role: "system", content: "You are an expert HVAC and ASHRAE tutor preparing students for the Certified HVAC Designer (CHD) exam."},
-                    {role: "user", content: prompt}
-                ]);
-                displayInsight(text, []);
-            } catch(e) {
-                displayInsight("AI Insight could not be generated: " + e.message, []);
-            }
-        }
-
-        async function getAIMCQs(topic) {
-            document.getElementById('insight-panel').classList.remove('hidden');
-            displayInsight("Loading ChatGPT MCQ questions ...", [], true);
-
-            const prompt = `Generate 5 multiple-choice practice questions for the ASHRAE CHD exam topic "${topic}". Each question must use ASHRAE standards and be exam relevant. For each question, provide answer options (marked a, b, c, d) and indicate the correct answer. Output as JSON array: [{"question":"...","options":["..."],"answer":"..."}]`;
-            try {
-                const text = await fetchOpenAIChat([
-                    {role: "system", content: "You are an expert HVAC and ASHRAE tutor preparing students for the Certified HVAC Designer (CHD) exam."},
-                    {role: "user", content: prompt}
-                ]);
-                let questions;
-                try{
-                    questions = JSON.parse(text);
-                } catch(e){
-                    // Try to extract JSON from text if returned as markdown
-                    const jsonStart = text.indexOf('[');
-                    if (jsonStart >= 0) questions = JSON.parse(text.slice(jsonStart));
-                    else throw e;
-                }
-                displayQuestions(questions, topic);
-            } catch(e) {
-                displayInsight("AI MCQs could not be generated: " + e.message, []);
-            }
-        }
-
-        function displayInsight(text, sources, isLoading = false) {
-            const panel = document.getElementById('insight-panel');
-            const contentDiv = document.getElementById('insight-content');
-            const sourcesDiv = document.getElementById('insight-sources');
-            panel.classList.remove('hidden');
-            if (isLoading) {
-                contentDiv.innerHTML = `<span class='text-gray-500'>${text}</span>`;
-                sourcesDiv.classList.add('hidden');
-                return;
-            }
-            // Markup for bolds and formulas
-            let formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            formatted = formatted.replace(/\$(.*?)\$/g, '<span class="text-secondary-color italic font-mono">$1</span>');
-            contentDiv.innerHTML = formatted;
-            sourcesDiv.textContent = "";
-            if (sources?.length) {
-                sourcesDiv.classList.remove('hidden');
-                sourcesDiv.innerHTML = sources.map(s=>`<a href="${s.uri}" target="_blank">${s.title}</a>`).join(" | ");
-            } else {
-                sourcesDiv.classList.add('hidden');
-            }
-        }
-
-        function displayQuestions(questions, topic) {
-            const panel = document.getElementById('insight-panel');
-            panel.classList.remove('hidden');
-            const contentDiv = document.getElementById('insight-content');
-            let html = `<h4 class="text-lg font-bold text-gray-800 mb-2">Practice MCQs: ${topic}</h4>`;
-            html += questions.map((q, i)=>{
-                const opts = q.options.map(opt=>`<li class="p-2 border border-gray-200 rounded-md mb-1 bg-gray-50">${opt}</li>`).join("");
-                return `<div class="mb-4 p-4 border border-blue-200 bg-blue-50 rounded-lg shadow-sm">
-                            <p class="font-semibold text-primary-dark">Q${i+1}: ${q.question}</p>
-                            <ul class="space-y-1 text-gray-800">${opts}</ul>
-                            <button class="show-answer-btn button-main mt-2 px-3 py-1 text-xs" data-answer="${q.answer.replace(/"/g, '&quot;')}">Show Answer</button>
-                            <p class="answer-text mt-2 p-2 bg-white border border-blue-300 rounded hidden italic text-sm font-semibold text-green-700"></p>
-                        </div>`;
-            }).join("");
-            contentDiv.innerHTML = html;
-            Array.from(contentDiv.getElementsByClassName('show-answer-btn')).forEach(btn=>{
-                btn.onclick = function(e){
-                    const answerBox = e.target.parentNode.querySelector('.answer-text');
-                    answerBox.textContent = 'Answer: ' + e.target.dataset.answer;
-                    answerBox.classList.remove('hidden');
-                    e.target.classList.add('hidden');
-                };
-            });
-        }
-
         function filterSchedule(filter, searchTerm) {
             const term = searchTerm.toLowerCase().trim();
             return scheduleData.filter(day => {
@@ -490,8 +373,8 @@
                         return day.status === 'complete';
                     case 'pending':
                         return day.status !== 'complete' && day.status !== 'exam';
-                    case 'review':
-                        return day.confidence < 3 && day.status !== 'complete' && day.status !== 'exam';
+                    case 'important':
+                        return day.important === true;
                     default:
                         return true;
                 }
@@ -503,68 +386,69 @@
             const filteredSchedule = filterSchedule(filter, searchTerm);
             const grid = document.getElementById('schedule-grid');
             grid.innerHTML = '';
+            if (!filteredSchedule.length) {
+                grid.innerHTML = `<p class="col-span-5 text-center text-gray-400 py-7">No days match your filters!</p>`;
+                return;
+            }
             const todayStr = new Date().toISOString().substring(0, 10);
             filteredSchedule.forEach((day, index) => {
-                let statusText = 'Planned';
-                let confidenceIndicator = '';
                 let cardClass = 'bg-gray-100 border-gray-300';
                 let textClass = 'text-gray-600';
-                const rag = day.confidence;
-                if (rag <= 2) {
-                    cardClass = 'border-rag-1';
-                    confidenceIndicator = '❗ Low Conf.';
-                } else if (rag === 3) {
-                    cardClass = 'border-rag-3';
-                    confidenceIndicator = '⚙️ Average';
-                } else if (rag === 4) {
-                    cardClass = 'border-rag-4';
-                    confidenceIndicator = '👍 Good';
-                } else if (rag === 5) {
-                    cardClass = 'border-rag-5';
-                    confidenceIndicator = '✅ Mastered';
-                }
+                let statusText = '';
                 if (day.status === 'complete') {
                     cardClass = 'border-rag-5 bg-complete-light';
                     textClass = 'text-complete';
-                    statusText = 'Completed!';
-                    confidenceIndicator = '&#x2714; Complete';
+                    statusText = '✅ Completed';
                 } else if (day.status === 'in_progress') {
-                    statusText = 'In Progress';
-                    textClass = `text-rag-${rag}`;
+                    cardClass = 'border-rag-3';
+                    textClass = 'text-rag-3';
+                    statusText = '🟡 In Progress';
                 } else if (day.status === 'pending') {
-                    statusText = 'Pending';
-                    textClass = `text-rag-${rag}`;
+                    cardClass = 'border-rag-4';
+                    textClass = 'text-rag-4';
+                    statusText = '⏳ Pending';
                 } else if (day.status === 'exam') {
                     cardClass = 'bg-primary-dark border-primary-dark text-white';
                     textClass = 'text-white';
-                    statusText = 'EXAM DAY';
-                    confidenceIndicator = 'GOOD LUCK!';
+                    statusText = '🎯 EXAM DAY';
                 }
-                if (day.date === todayStr && day.status !== 'exam') {
-                    cardClass += ' border-4 border-dashed border-current';
-                    statusText = (day.status === 'complete' ? 'COMPLETED TODAY' : 'CURRENT FOCUS');
-                }
-                let noteIndicator = day.notes && day.notes.trim() !== ''
-                    ? '<span class="ml-2 text-xs text-secondary-color">&#x1F4DD;</span>' : '';
+                let noteIndicator = day.notes && day.notes.trim() !== '' ? 
+                    '<span class="ml-2 text-xs text-secondary-color">&#x1F4DD;</span>' : '';
+                let importantTag = day.important ? '<span class="important-badge">⭐ Important</span>' : '';
                 const cardHtml = `
                     <div id="day-${index}" data-index="${index}"
-                         class="day-card p-4 border-l-4 ${cardClass} text-gray-800 flex flex-col justify-between"
-                         ${day.status !== 'exam' ? `onclick="openModal(${scheduleData.findIndex(d => d.date === day.date)})"` : ''}>
+                        class="day-card p-4 border-l-4 ${cardClass} text-gray-800 flex flex-col justify-between"
+                        draggable="true"
+                        ${day.status !== 'exam' ? `onclick="openModal(${scheduleData.findIndex(d => d.date === day.date)})"` : ''}>
                         <div>
                             <p class="text-xs font-semibold uppercase text-gray-500 mb-1">${formatDate(day.date)}</p>
-                            <p class="text-lg font-bold truncate ${day.status === 'exam' ? 'text-white' : ''}">${day.topic}${noteIndicator}</p>
+                            <p class="text-lg font-bold truncate ${day.status === 'exam' ? 'text-white' : ''}">
+                                ${day.topic}${importantTag}${noteIndicator}
+                            </p>
                         </div>
                         <div class="mt-2 pt-2 border-t border-gray-200 flex justify-between items-center">
-                            <span class="text-sm font-medium ${textClass}">
-                                ${statusText}
-                            </span>
-                            <span class="text-xs font-semibold ${day.status === 'exam' ? 'text-white' : textClass}">
-                                ${confidenceIndicator}
-                            </span>
+                            <span class="text-sm ${textClass}">${statusText}</span>
+                            <span class="text-xs font-semibold">${day.status !== 'exam' && day.notes ? '📝' : ''}</span>
                         </div>
                     </div>
                 `;
                 grid.innerHTML += cardHtml;
+            });
+            // Drag and drop
+            if (window.sortable) window.sortable.destroy();
+            window.sortable = Sortable.create(grid, {
+                animation: 200,
+                onEnd: function (evt) {
+                    const filtered = filterSchedule(currentFilter, currentSearchTerm);
+                    if (filtered.length === scheduleData.length) {
+                        // Only allow drag if not filtered!
+                        const oldIdx = evt.oldIndex;
+                        const newIdx = evt.newIndex;
+                        scheduleData.splice(newIdx, 0, scheduleData.splice(oldIdx, 1)[0]);
+                        saveSchedule();
+                        renderSchedule(currentFilter, currentSearchTerm);
+                    }
+                }
             });
         }
         function updateDashboard() {
@@ -576,28 +460,15 @@
             document.getElementById('days-remaining').textContent = daysRemaining;
             document.getElementById('days-completed').textContent = daysCompleted;
             document.getElementById('overall-progress').textContent = `${progress}%`;
+            const bar = document.getElementById('progress-bar');
+            bar.style.width = `${progress}%`;
+            bar.style.background = progress === 100 ? "linear-gradient(90deg,#10b981 100%,#3b82f6 0%)" : "linear-gradient(90deg,#3b82f6 0%,#10b981 100%)";
+            if (progress === 100) {
+                setTimeout(() => { confetti({particleCount:120,spread:200,origin:{y:.8}}); }, 700);
+            }
         }
 
-        // ------- Modal Logic -------
-        function updateConfidenceDisplay(value) {
-            const display = document.getElementById('confidence-value');
-            const label = document.getElementById('confidence-label');
-            display.textContent = value;
-            let text = '';
-            let colorClass = '';
-            if (value <= 2) {
-                text = '(Needs Review)'; colorClass = 'rag-1';
-            } else if (value == 3) {
-                text = '(Average)'; colorClass = 'rag-3';
-            } else if (value == 4) {
-                text = '(Good)'; colorClass = 'rag-4';
-            } else {
-                text = '(Mastered)'; colorClass = 'rag-5';
-            }
-            label.textContent = text;
-            display.className = `font-bold ${colorClass}`;
-            label.className = `text-xs ml-2 ${colorClass}`;
-        }
+        // --- Modal ---
         window.openModal = function(index) {
             editingIndex = index;
             const day = scheduleData[index];
@@ -607,7 +478,6 @@
             const topicInput = document.getElementById('modal-topic-input');
             const topicDatalist = document.getElementById('topic-options');
             const notesTextarea = document.getElementById('modal-notes');
-            const confidenceSlider = document.getElementById('modal-confidence');
             topicDatalist.innerHTML = '';
             CORE_TOPICS.forEach(topic => {
                 const option = document.createElement('option');
@@ -617,19 +487,30 @@
             topicInput.value = day.topic;
             document.getElementById('modal-status').value = day.status;
             notesTextarea.value = day.notes || '';
-            confidenceSlider.value = day.confidence || 3;
-            updateConfidenceDisplay(confidenceSlider.value);
-            confidenceSlider.oninput = (e) => updateConfidenceDisplay(e.target.value);
-
-            // Modal buttons:
-            document.getElementById('get-insight-modal').onclick = () => {
-                getAIInsight(topicInput.value);
+            document.getElementById('important-check').checked = !!day.important;
+            document.getElementById('edit-up').onclick = () => {
+                if (editingIndex > 0) {
+                    [scheduleData[editingIndex-1], scheduleData[editingIndex]] = [scheduleData[editingIndex], scheduleData[editingIndex-1]];
+                    editingIndex--;
+                    saveSchedule();
+                    renderSchedule(currentFilter,currentSearchTerm);
+                }
             };
-            document.getElementById('get-questions-modal').onclick = () => {
-                getAIMCQs(topicInput.value);
+            document.getElementById('edit-down').onclick = () => {
+                if (editingIndex < scheduleData.length-1) {
+                    [scheduleData[editingIndex+1], scheduleData[editingIndex]] = [scheduleData[editingIndex], scheduleData[editingIndex+1]];
+                    editingIndex++;
+                    saveSchedule();
+                    renderSchedule(currentFilter,currentSearchTerm);
+                }
+            };
+            document.getElementById('pomodoro-trigger').onclick = () => {
+                modal.classList.add('hidden');
+                openPomodoro();
             };
             modal.classList.remove('hidden');
         }
+
         function closeModal() {
             document.getElementById('edit-modal').classList.add('hidden');
             editingIndex = -1;
@@ -641,18 +522,13 @@
             const topic = document.getElementById('modal-topic-input').value;
             const status = document.getElementById('modal-status').value;
             const notes = document.getElementById('modal-notes').value;
-            const confidence = parseInt(document.getElementById('modal-confidence').value, 10);
+            const important = document.getElementById('important-check').checked;
             scheduleData[editingIndex].topic = topic;
             scheduleData[editingIndex].status = status;
             scheduleData[editingIndex].notes = notes;
-            scheduleData[editingIndex].confidence = confidence;
+            scheduleData[editingIndex].important = important;
             closeModal();
             await saveSchedule();
-
-            // Success feedback animation for save
-            const saveBtn = document.getElementById('save-modal');
-            saveBtn.textContent = "Saved!";
-            setTimeout(() => { saveBtn.textContent = "Save Changes"; }, 1100);
         }
 
         document.querySelectorAll('#filter-controls button').forEach(button => {
@@ -662,9 +538,11 @@
                 renderSchedule(e.currentTarget.dataset.filter, currentSearchTerm);
             });
         });
+
         document.getElementById('search-input').addEventListener('input', (e) => {
             renderSchedule(currentFilter, e.target.value);
         });
+
         document.getElementById('join-plan-btn').onclick = joinPlan;
         document.getElementById('create-plan-btn').onclick = createNewPlan;
         document.getElementById('copy-plan-id-btn').onclick = (e) => {
@@ -679,14 +557,72 @@
                 btn.textContent = 'Copied!';
                 setTimeout(() => { btn.textContent = 'Copy ID'; }, 2000);
             } catch (err) {
-                console.error('Failed to copy text: ', err);
                 btn.textContent = 'Error';
                 setTimeout(() => { btn.textContent = 'Copy ID'; }, 2000);
             }
             document.body.removeChild(tempInput);
         };
+
+        // --- Pomodoro Timer Modal Logic ---
+        function openPomodoro() {
+            const pomModal = document.getElementById('pomodoro-modal');
+            const timerDisplay = document.getElementById('timer-display');
+            const timerDone = document.getElementById('timer-done');
+            let minutes = 25, seconds = 0, interval, running = false;
+            timerDisplay.textContent = "25:00";
+            timerDone.classList.add("hidden");
+            pomModal.classList.remove('hidden');
+            document.getElementById('close-timer').onclick = () => {
+                pomModal.classList.add('hidden');
+                clearInterval(interval);
+            }
+            document.getElementById('start-timer').onclick = () => {
+                if (running) return;
+                running = true;
+                interval = setInterval(()=> {
+                    if (seconds === 0 && minutes > 0) {
+                        minutes--; seconds = 59;
+                    } else if (seconds > 0) {
+                        seconds--;
+                    }
+                    timerDisplay.textContent = `${minutes.toString().padStart(2,"0")}:${seconds.toString().padStart(2,"0")}`;
+                    if (minutes === 0 && seconds === 0) {
+                        timerDone.classList.remove("hidden");
+                        clearInterval(interval);
+                        confetti({particleCount:55,spread:180,origin:{y:.8}});
+                    }
+                }, 1000);
+            }
+        }
+
+        // --- Theme Toggle ---
+        function updateTheme(force){
+            const body = document.body;
+            const btn = document.getElementById('theme-toggle');
+            const btn2 = document.getElementById('theme-toggle-2');
+            let dark = force!==undefined ? force : localStorage.getItem('chd_theme') === 'dark';
+            if (dark) {
+                body.classList.add("dark-mode");
+                btn.textContent = "🌚 Dark Mode";
+                btn.classList.add("active");
+                btn2.textContent = "🌚";
+                btn2.classList.add("active");
+                localStorage.setItem('chd_theme','dark');
+            } else {
+                body.classList.remove("dark-mode");
+                btn.textContent = "🌞 Light Mode";
+                btn.classList.remove("active");
+                btn2.textContent = "🌞";
+                btn2.classList.remove("active");
+                localStorage.setItem('chd_theme','light');
+            }
+        }
+        document.getElementById('theme-toggle').onclick = ()=> updateTheme(!document.body.classList.contains("dark-mode"));
+        document.getElementById('theme-toggle-2').onclick = ()=> updateTheme(!document.body.classList.contains("dark-mode"));
+
         window.onload = function() {
             document.querySelector('#filter-controls button[data-filter="all"]').classList.add('active', 'bg-primary-dark', 'text-white', 'shadow-lg');
+            updateTheme();
             setupFirebase();
         };
     </script>
