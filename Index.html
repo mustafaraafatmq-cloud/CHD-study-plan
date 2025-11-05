@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASHRAE CHD Collaborative Study Planner</title>
+    
+    <style>
+        :root {
+            --ashrae-blue: #007bff; /* Primary ASHRAE Blue */
+            --light-bg: #f8f9fa; /* Light background */
+            --text-color: #333;
+            --border-color: #ddd;
+            --box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--light-bg);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: var(--box-shadow);
+        }
+
+        h1 {
+            color: var(--ashrae-blue);
+            font-size: 2.4em;
+            letter-spacing: 1px;
+        }
+
+        /* Calendar Grid Layout */
+        #calendar-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Enhanced responsiveness */
+            gap: 20px;
+            padding: 10px;
+        }
+
+        .day-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-left: 5px solid var(--ashrae-blue);
+        }
+
+        .day-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--box-shadow);
+        }
+
+        .date-header {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: var(--ashrae-blue);
+            margin-bottom: 8px;
+        }
+        
+        .daily-topic {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 15px;
+            min-height: 40px; /* Ensures consistent card height */
+        }
+
+        /* Expandable Field (Textarea) */
+        .study-notes {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-top: 10px;
+            resize: vertical; 
+            font-size: 0.95em;
+            line-height: 1.5;
+            transition: border-color 0.3s;
+        }
+        
+        .study-notes:focus {
+            border-color: var(--ashrae-blue);
+            outline: none;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+        /* Feature Buttons */
+        .feature-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .feature-buttons button {
+            flex-grow: 1;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: opacity 0.15s, transform 0.1s;
+        }
+        
+        .feature-buttons button:active {
+            transform: scale(0.98);
+        }
+
+        .insight-btn {
+            background-color: #28a745; /* Green */
+            color: white;
+        }
+
+        .quiz-btn {
+            background-color: #ffc107; /* Yellow/Orange */
+            color: var(--text-color);
+        }
+
+        .insight-btn:hover { opacity: 0.9; }
+        .quiz-btn:hover { opacity: 0.9; }
+
+        /* Exam Date Highlight */
+        .exam-day {
+            background-color: #dc3545; /* Red */
+            color: white;
+            border-left: 5px solid #a71d2a;
+        }
+        .exam-day .date-header, .exam-day .daily-topic {
+            color: white;
+        }
+        .exam-day label {
+            color: white;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>ASHRAE CHD Exam Prep Scheduler 🗓️</h1>
+        <p>Your collaborative, modern study plan leading up to **November 24th, 2025**.</p>
+    </header>
+
+    <main id="calendar-container"></main>
+
+    <footer>
+        <p>Powered by Firebase for Collaboration. Good luck, Moustafa and study partner!</p>
+    </footer>
+
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.6.8/firebase-database.js"></script>
+
+    <script>
+        // 1. Firebase Configuration (Using your provided details)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAWi2fE6rxO2YwH3bayf7zB9NsEoPGXYM",
+            authDomain: "chd-study-plan.firebaseapp.com",
+            projectId: "chd-study-plan",
+            storageBucket: "chd-study-plan.firebasestorage.app",
+            messagingSenderId: "329855623463",
+            appId: "1:329855623463:web:32be2774d68574ca910902"
+        };
+
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const database = firebase.database();
+        const studyPlanRef = database.ref('study_notes'); // Root for collaborative data
+
+        // 2. Define Key Dates
+        // NOTE: Dates are hardcoded for 2025 as requested, regardless of current execution year.
+        const EXAM_DATE = new Date('2025-11-24T00:00:00'); 
+        const START_DATE = new Date(); 
+        START_DATE.setHours(0, 0, 0, 0); // Normalize start date to today at midnight
+        
+        // If current date is after exam date, adjust start date for calendar visualization
+        if (START_DATE > EXAM_DATE) {
+             START_DATE.setDate(EXAM_DATE.getDate() - 20); // Show last 20 days leading to exam
+        }
+
+
+        const CALENDAR_CONTAINER = document.getElementById('calendar-container');
+
+        // 3. Detailed CHD Study Topics (Aligned with Blueprint)
+        // This 19-day plan covers all major CHD domains leading up to Nov 24th.
+        const CHD_TOPICS = [
+            // --- Domain 1: System Design (40% Weight) ---
+            "HVAC System Types (VAV, VRF, Radiant, Thermal Storage)",
+            "Ductwork/Piping Design & Layout (Schematics, Flow Diagrams, Sizing)",
+            "Airside Unit Selection (AHUs, Fans, Coils) & Air Diffusion Principles",
+            "Waterside Component Selection (Chillers, Pumps, Cooling Towers, Expansion Tanks)",
+            "HVAC Zoning Plans and Control Sequences/Schematics (BMS Basics)",
+
+            // --- Domain 2: Design Calculations (25% Weight) ---
+            "Building Heat Load/Loss Calculations & Critical Path Analysis (e.g., CLTD/CLF)",
+            "Ventilation Rate Requirements (ASHRAE 62.1) & Outdoor Air Calculations",
+            "Duct/Piping Sizing & Head Loss (Fluid Dynamics, Static/Total Pressure)",
+            "Psychrometrics and Coil Performance Calculations (Cooling/Heating)",
+
+            // --- Domain 3: Coordination (20% Weight) ---
+            "Coordination w/ Architectural, Structural, and Fire/Life Safety Engineers",
+            "Compliance w/ Client Specifications and Basis of Design (BOD) Documentation",
+
+            // --- Domain 4: Procedural (15% Weight) ---
+            "Code/Standard Compliance & Review (ASHRAE 90.1, 55, 15, Fire Code)",
+            "Procedural Tasks (Shop Drawing Review, As-Builts, Field Investigations)",
+
+            // --- Review and Practice (The Final Push) ---
+            "**FOCUSED REVIEW:** Practice Exam 1 & Weak Area Analysis",
+            "**FOCUSED REVIEW:** Deep Dive on Load/Sizing Calculations",
+            "**FOCUSED REVIEW:** ASHRAE Standards & Code Application",
+            "**FOCUSED REVIEW:** Practice Exam 2 & Final Corrections",
+            "**FOCUSED REVIEW:** Go-No-Go List, Formulas, & Quick Recall",
+            "EXAM EVE: Light Review ONLY. Rest and Relax! 🧘", // Nov 23rd
+        ];
+
+        // 4. Main Calendar Generation Function
+        function generateCalendar() {
+            let dayCount = 0;
+            let currentDate = new Date(START_DATE);
+
+            while (currentDate <= EXAM_DATE) {
+                const dateKey = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD for Firebase
+                
+                // Determine the topic index, prioritizing the Review days at the end
+                let topicIndex;
+                if (dayCount < CHD_TOPICS.length) {
+                    topicIndex = dayCount;
+                } else {
+                    // Repeat the last few topics if the period is longer than 19 days
+                    topicIndex = CHD_TOPICS.length - 1; 
+                }
+                
+                const dailyTopic = CHD_TOPICS[topicIndex];
+                const isExamDay = currentDate.toDateString() === EXAM_DATE.toDateString();
+
+                const card = document.createElement('div');
+                card.className = `day-card ${isExamDay ? 'exam-day' : ''}`;
+                card.dataset.dateKey = dateKey;
+
+                // Populate the card content
+                card.innerHTML = `
+                    <div class="date-header">${currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${currentDate.toLocaleDateString('en-US', { weekday: 'long' })}</div>
+                    <p class="daily-topic">Topic: ${isExamDay ? 'ASHRAE CHD EXAM DAY! 🎉 Focus on confidence.' : dailyTopic}</p>
+                    
+                    ${!isExamDay ? `
+                        <div class="feature-buttons">
+                            <button class="insight-btn" onclick="getInsight('${dailyTopic}')">💡 Get Insights</button>
+                            <button class="quiz-btn" onclick="startQuiz('${dailyTopic}')">❓ MCQ Quiz</button>
+                        </div>
+                    ` : ''}
+                    
+                    <label for="notes-${dateKey}" style="margin-top: 15px; display: block;">**Study Notes/Links (Collaborative):**</label>
+                    <textarea 
+                        id="notes-${dateKey}" 
+                        class="study-notes" 
+                        placeholder="Type your shared notes, websites, formulas, or questions here..."
+                        oninput="saveNotes('${dateKey}', this.value)"
+                        ${isExamDay ? 'disabled' : ''}
+                    ></textarea>
+                `;
+
+                CALENDAR_CONTAINER.appendChild(card);
+                currentDate.setDate(currentDate.getDate() + 1); // Move to the next day
+                dayCount++;
+            }
+
+            // After generating, load and watch for collaborative data updates
+            setupFirebaseListener();
+        }
+
+        // 5. Firebase Realtime Collaboration Listener (LOADS data from others)
+        function setupFirebaseListener() {
+            // Listens for real-time updates from the Firebase Realtime Database
+            studyPlanRef.on('value', (snapshot) => {
+                const notesData = snapshot.val();
+                if (notesData) {
+                    Object.keys(notesData).forEach(dateKey => {
+                        const textarea = document.getElementById(`notes-${dateKey}`);
+                        if (textarea) {
+                            // Only update if the current user isn't actively typing
+                            if (document.activeElement !== textarea) {
+                                textarea.value = notesData[dateKey];
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        // 6. Function to Save Data to Firebase (SAVES user data)
+        function saveNotes(dateKey, notes) {
+            // Debounce function to prevent rapid saves (better for Firebase cost/performance)
+            clearTimeout(window.saveTimer);
+            window.saveTimer = setTimeout(() => {
+                // Pushes the user's notes to the Firebase Realtime Database
+                studyPlanRef.child(dateKey).set(notes)
+                    .then(() => console.log(`Notes for ${dateKey} saved/synced successfully.`))
+                    .catch(error => console.error("Firebase save failed:", error));
+            }, 750); // Save 750ms after the user stops typing
+        }
+
+        // 7. Interactive Feature Placeholders
+        function getInsight(topic) {
+            // Opens a new tab with a targeted Google search for key concepts
+            alert(`💡 Launching a search for key insights on "${topic}".`);
+            window.open(`https://www.google.com/search?q=ASHRAE+CHD+${topic}+key+concepts+guide`, '_blank');
+        }
+
+        function startQuiz(topic) {
+            // Placeholder: Direct to a relevant external quiz resource/search
+            alert(`❓ Searching for MCQ practice on "${topic}". In a full app, this would load an internal quiz.`);
+            window.open(`https://www.google.com/search?q=ASHRAE+CHD+${topic}+MCQ+practice+questions`, '_blank');
+        }
+
+        // Run the calendar generation when the page loads
+        document.addEventListener('DOMContentLoaded', generateCalendar);
+    </script>
+</body>
+</html>
