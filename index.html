@@ -201,8 +201,12 @@
             appId: "1:329855623463:web:32be2774d68574ca910902"
         };
 
-        // ---- ADD YOUR GEMINI API KEY HERE ----
-        const GEMINI_API_KEY = "AIzaSyA5QdzNXzrzvjXEX-luvU7CXaXCLyCpaqM"; // <-- Paste your Gemini API key here
+        // ---- YOUR GEMINI API KEY AND NEW ENDPOINTS ----
+        const GEMINI_API_KEY = "AIzaSyA5QdzNXzrzvjXEX-luvU7CXaXCLyCpaqM";
+        const API_URL_INSIGHT = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+        const API_URL_MCQ = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+        const BASE_DELAY = 1000;
+        const MAX_RETRIES = 4;
 
         let app, db, auth, userId = null;
         let currentPlanId = null;
@@ -225,12 +229,6 @@
             'Codes, Standards, and Ethics (90.1, 62.1)',
             'Practice Exams & Final Review'
         ];
-
-        // AI API Config
-        const API_URL_INSIGHT = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const API_URL_MCQ = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const BASE_DELAY = 1000;
-        const MAX_RETRIES = 4;
 
         function formatDate(dateStr) {
             const date = new Date(dateStr + 'T00:00:00');
