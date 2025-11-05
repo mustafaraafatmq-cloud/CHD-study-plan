@@ -1,0 +1,126 @@
+:root {
+    --primary-color: #007bff; /* ASHRAE Blue */
+    --secondary-color: #f8f9fa; /* Light background */
+    --text-color: #333;
+    --border-color: #ddd;
+    --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: var(--box-shadow);
+}
+
+h1 {
+    color: var(--primary-color);
+    font-size: 2.2em;
+}
+
+/* Calendar Grid Layout */
+#calendar-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive grid */
+    gap: 15px;
+    padding: 10px;
+}
+
+.day-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: var(--box-shadow);
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.day-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.date-header {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+}
+
+/* Expandable Field (Textarea) */
+.study-notes {
+    width: 100%;
+    min-height: 100px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-top: 10px;
+    resize: vertical; /* Allows user to expand/collapse */
+    font-size: 0.9em;
+}
+
+/* Feature Buttons */
+.feature-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.feature-buttons button {
+    flex-grow: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.15s;
+}
+
+.insight-btn {
+    background-color: #28a745; /* Green */
+    color: white;
+}
+
+.quiz-btn {
+    background-color: #ffc107; /* Yellow/Orange */
+    color: var(--text-color);
+}
+
+.insight-btn:hover { background-color: #218838; }
+.quiz-btn:hover { background-color: #e0a800; }
+
+/* Placeholder for daily task/topic */
+.daily-topic {
+    font-style: italic;
+    color: #6c757d;
+    margin-bottom: 10px;
+}
+
+/* Exam Date Highlight */
+.exam-day {
+    background-color: #dc3545; /* Red */
+    color: white;
+}
+.exam-day .date-header {
+    color: white;
+    border-bottom-color: white;
+}
